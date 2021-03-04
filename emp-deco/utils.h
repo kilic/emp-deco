@@ -1,5 +1,5 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef EMP_DECO_UTILS_H_
+#define EMP_DECO_UTILS_H_
 #include "emp-sh2pc/emp-sh2pc.h"
 
 using namespace emp;

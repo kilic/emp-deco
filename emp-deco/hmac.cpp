@@ -167,4 +167,3 @@ Integer HMAC::outer_hmac(Integer &chain)
 
   return out_2;
 }
-// };

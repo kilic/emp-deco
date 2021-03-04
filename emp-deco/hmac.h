@@ -1,5 +1,5 @@
-#ifndef HMAC_H_
-#define HMAC_H_
+#ifndef EMP_DECO_HMAC_H_
+#define EMP_DECO_HMAC_H_
 #include "emp-sh2pc/emp-sh2pc.h"
 #include <iostream>
 using namespace emp;

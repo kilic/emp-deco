@@ -1,5 +1,5 @@
-#ifndef TLS_H_
-#define TLS_H_
+#ifndef EMP_DECO_TLS_H_
+#define EMP_DECO_TLS_H_
 #include "emp-sh2pc/emp-sh2pc.h"
 #include "hmac.h"
 #include <iostream>
