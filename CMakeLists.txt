@@ -8,7 +8,7 @@ include(${CMAKE_FOLDER}/cmake/common.cmake)
 find_package(emp-sh2pc REQUIRED)
 include_directories(${EMP-SH2PC_INCLUDE_DIRS})
   
-add_library(hmac_lib STATIC emp-deco/utils.cpp emp-deco/tls.cpp emp-deco/hmac.cpp emp-deco/sha256.cpp emp-deco/debug.cpp)
+add_library(hmac_lib STATIC emp-deco/tls.cpp emp-deco/hmac.cpp emp-deco/sha256.cpp emp-deco/debug.cpp)
 target_link_libraries(hmac_lib ${EMP-OT_LIBRARIES} ${OPENSSL_LIBRARIES})
 
 add_definitions(-DCIRCUIT_PATH=${PROJECT_SOURCE_DIR}/emp-deco/circuits/)

@@ -38,7 +38,9 @@ public:
     template <class T>
     void block_init(vector<T> &hh, vector<T> in)
     {
-        this->_block_init(hh, in);
+        for (int i = 0; i < 8; i++)
+            hh[i] = this->iv<T>(i);
+        this->_block(hh, in);
     }
 
 private:
@@ -84,13 +86,6 @@ private:
         hh[5] = hh[5] + f;
         hh[6] = hh[6] + g;
         hh[7] = hh[7] + h;
-    };
-    template <class T>
-    void _block_init(vector<T> &hh, vector<T> in)
-    {
-        for (int i = 0; i < 8; i++)
-            hh[i] = this->iv<T>(i);
-        this->_block(hh, in);
     };
 };
 #endif
