@@ -1,169 +1,132 @@
 #include "emp-sh2pc/emp-sh2pc.h"
-#include <iostream>
-#include "utils.h"
 #include "hmac.h"
-using namespace std;
-using namespace emp;
 
-Integer xor_secret(Integer &pad, Integer &secret)
+void HMAC::set_secret(vector<Integer> secret, int secret_len)
 {
-  Integer res(512, 0, XOR);
-  int off = 512 - secret.size();
-  copy_int(res, pad, 0, 0, 512);
-  for (int i = 0; i < secret.size(); i++)
+  // Assume secret bit len is 32*k
+  // TODO: assert ipad.size >= secret_len
+  int n = ipad_start.size();
+  this->ipad.clear();
+  this->opad.clear();
+  for (int i = 0; i < n; i++)
   {
-    res[i + off] = pad[i + off] ^ secret[i];
+    if (i < secret_len)
+    {
+      this->ipad.push_back(this->ipad_start[i] ^ secret[i]);
+      this->opad.push_back(this->opad_start[i] ^ secret[i]);
+    }
+    else
+    {
+      this->ipad.push_back(this->ipad_start[i]);
+      this->opad.push_back(this->opad_start[i]);
+    }
   }
-  return res;
 }
 
-Integer pad_int(int len)
+vector<Integer> HMAC::pad_block_input(vector<Integer> seed, int seed_bit_len)
 {
-  int pad_int_len = 512 - (len % 512);
-  Integer pad(pad_int_len, len, PUBLIC);
-  pad[len - 1] = 1;
+  // TODO: assert seed bit len
+  int z = seed_bit_len % 512;
+  int n_seed = seed_bit_len / 32;
+  if (seed_bit_len % 32 != 0)
+  {
+    n_seed += 1;
+  }
+  int number_of_pad_int = (512 - z) / 32;
+
+  vector<Integer> pad;
+  bool alter_seed = z % 32 != 0;
+
+  for (int i = 0; i < seed.size() - 1; i++)
+    pad.push_back(seed[i]);
+
+  if (alter_seed)
+    pad.push_back(seed[n_seed - 1] ^ Integer(32, 1 << (((32 - z) % 32) - 1), PUBLIC)); // TODO: just flip a single bit
+  else
+  {
+    pad.push_back(seed[n_seed - 1]);
+  }
+
+  for (int i = 0; i < number_of_pad_int; i++)
+  {
+    int val = i != number_of_pad_int - 1 ? 0 : seed_bit_len + 512; // 512 comes from xpad size
+    Integer el(32, val, PUBLIC);
+    if (i == 0 && !alter_seed)
+      el = el ^ Integer(32, 1 << 31, PUBLIC); // TODO: just flip a single bit
+    pad.push_back(el);
+  }
   return pad;
 }
 
-HMAC::HMAC(BristolFashion hasher) : hasher(hasher)
+void HMAC::inner_hmac(vector<Integer> &out, vector<Integer> data)
 {
-}
-
-void HMAC::set_secret(Integer &secret)
-{
-  ipad = xor_secret(ipad_start, secret);
-  opad = xor_secret(opad_start, secret);
-}
-
-vector<Integer> HMAC::run(int t, Integer seed)
-{
-
-  Integer empty(0, 0, PUBLIC);
-  vector<Integer> A;
-  for (int i = 0; i < t; i++)
+  sha256 h = this->hasher;
+  // assert `in` is padded to 64 * k
+  int k = data.size() / 16; // 64 bytes, 16 uint32_t
+  h.block_init(out, this->ipad);
+  for (int i = 0; i < k; i++)
   {
-    // * a_i can be public
-    // * after calculating a_1 in 2PC
-    //	remaining a_i can be calculated locally by ALICE
-    Integer state(256, 0, PUBLIC);
-    if (i == 0)
-    {
-      state = this->inner_hmac(seed, empty);
-    }
-    else
-    {
-      state = inner_hmac(A[i - 1], empty);
-    }
-    state = outer_hmac(state);
-    A.push_back(state);
+    auto in = vector<Integer>(data.begin() + i * 16, data.begin() + (i + 1) * 16);
+    h.block(out, in);
   }
-  vector<Integer> U;
+}
+
+void HMAC::outer_hmac(vector<Integer> &out, vector<Integer> chain)
+{
+  sha256 h = this->hasher;
+  h.block_init(out, this->opad);
+  // assume chain is paddded
+  h.block(out, chain);
+}
+
+vector<vector<Integer>> HMAC::run(int t, vector<Integer> seed, int seed_bit_len)
+{
+
+  vector<vector<Integer>> A;
+  auto in = pad_block_input(seed, seed_bit_len);
+  vector<Integer> state(8);
+
+  // a_1 = HMAC(key, seed)
+  // a_i = HMAC(key, a_(i-1))
   for (int i = 0; i < t; i++)
   {
-    Integer state = inner_hmac(seed, A[i]);
-    state = outer_hmac(state);
+
+    if (i == 0)
+      // state = hash(secret^ipad, seed)
+      this->inner_hmac(state, in);
+    else
+      // state = hash(secret^ipad, a_i)
+      this->inner_hmac(state, pad_block_input(state, 256));
+
+    // state = hash(secret^opad, state)
+    this->outer_hmac(state, pad_block_input(state, 256));
+
+    {
+
+      // prepare for u
+      // a_i' =  a_i|seed
+
+      vector<Integer> a;
+      for (int i = 0; i < 8; i++)
+        a.push_back(state[i]);
+      for (int i = 0; i < seed.size(); i++)
+        a.push_back(seed[i]);
+      A.push_back(a);
+    }
+  }
+
+  // u_i = HMAC(key, a_(i+1)|seed)
+  vector<vector<Integer>> U;
+  int block_bit_len = seed_bit_len + 256;
+  for (int i = 0; i < t; i++)
+  {
+    vector<Integer> state(8);
+    auto in = pad_block_input(A[i], block_bit_len);
+    // state = hash(key, a_i|seed)
+    this->inner_hmac(state, in);
+    // state = hash(key, state)
+    this->outer_hmac(state, pad_block_input(state, 256));
     U.push_back(state);
   }
   return U;
-}
-
-Integer HMAC::inner_hmac(Integer &seed, Integer &chain)
-{
-
-  int block_size = this->ipad.size() + seed.size() + chain.size();
-  Integer end_pad = pad_int(block_size);
-  bool has_chain = chain.size() != 0;
-
-  // key = (premaster_secret^ipad)<64>
-  // hash_1 = hash(ipad<64>, seed<_>)
-
-  // * input: xor
-  // * intermadiate compression results: public
-  // * output: public
-
-  // inner compression:
-  // in 2PC
-  // inp_1 = [iv<32>, ipad<64>]
-  Integer inp_inner(512 + 256, 0, PUBLIC);
-  Integer out(256, 0, PUBLIC);
-  copy_int(inp_inner, this->iv, 512, 0, 256);
-  // TODO: copying public data into xor?
-  copy_int(inp_inner, this->ipad, 0, 0, 512);
-  hasher.compute(out.bits.data(), inp_inner.bits.data());
-
-  Integer inp(512 + 256, 0, PUBLIC);
-  int z = block_size / 512;
-  int pad_size = block_size % 512;
-  int seed_off = seed.size();
-  if (pad_size != 0)
-  {
-    z -= 1;
-  }
-
-  // outer compressions:
-  // TODO: can be ALICE only computation
-  for (int i = 0; i < z; i++)
-  {
-    // new_iv<32> = out<32>
-    // inp = [new_iv<32>, seed[_:_]<_>, pad<_>]
-    Integer inp(512 + 256, 0, PUBLIC);
-    copy_int(inp, out, 512, 0, 256);
-    if (i == 0 && has_chain)
-    {
-      seed_off -= 256;
-      copy_int(inp, chain, 256, 0, 256);
-      copy_int(inp, seed, 0, seed_off, 256);
-    }
-    else
-    {
-      seed_off -= 512;
-      copy_int(inp, seed, 0, seed_off, 512);
-    }
-    // cout << "loop " << seed_off << endl;
-    hasher.compute(out.bits.data(), inp.bits.data());
-  }
-
-  // ALICE only
-  if (pad_size != 0)
-  {
-    // new_iv<32> = out<32>
-    // inp = [new_iv<32>, seed[_:]<_>, pad<_>]
-    copy_int(inp, out, 512, 0, 256);
-    copy_int(inp, seed, end_pad.size(), 0, seed_off);
-    copy_int(inp, end_pad, 0, 0, end_pad.size());
-    hasher.compute(out.bits.data(), inp.bits.data());
-  }
-
-  return out;
-}
-
-Integer HMAC::outer_hmac(Integer &chain)
-{
-
-  // TODO: we arrive at same intermadiate compression result
-  //	many times. we may want to consider store and reuse this value
-
-  // * input: xor
-  // * intermadiate compression result: public
-  // * output: xor
-
-  // inner compression:
-  // inp = [iv<32>, opad_premaster_secret<64>]
-  Integer inp(512 + 256, 0, PUBLIC);
-  Integer out_1(256, 0, PUBLIC);
-  copy_int(inp, this->iv, 512, 0, 256);
-  copy_int(inp, this->opad, 0, 0, 512);
-  this->hasher.compute(out_1.bits.data(), inp.bits.data());
-
-  // outer compression:
-  // new_iv<32> = out_1<32>
-  // inp = [new_iv<32>, chain<32>, pad<32>]
-  Integer inp_2(512 + 256, 0, PUBLIC);
-  Integer out_2(256, 0, PUBLIC);
-  copy_int(inp_2, out_1, 512, 0, 256);
-  copy_int(inp_2, chain, 256, 0, 256);
-  copy_int(inp_2, this->outer_end_pad, 0, 0, 256);
-  this->hasher.compute(out_2.bits.data(), inp_2.bits.data());
-
-  return out_2;
 }

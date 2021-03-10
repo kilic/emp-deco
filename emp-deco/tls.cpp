@@ -1,62 +1,60 @@
-#include "emp-sh2pc/emp-sh2pc.h"
-#include "utils.h"
 #include "tls.h"
-#include <iostream>
-using namespace std;
-using namespace emp;
 
-Integer master_secret_seed(string client_random_hex, string server_random_hex)
+const string master_secret_label = "6d617374657220736563726574";
+const string key_expansion_label = "6b657920657870616e73696f6e";
+const int master_secret_seed_len = 616;
+const int key_expansion_seed_len = 616;
+
+vector<Integer> to_word(Integer a, int party)
 {
-  Integer client_random_int = hex_to_integer(256, client_random_hex, ALICE);
-  Integer server_random_int = hex_to_integer(256, server_random_hex, ALICE);
-  Integer label_master_secret = hex_to_integer(104, "6d617374657220736563726574", PUBLIC); // "master secret"
-  Integer seed(256 + 256 + 104, 0, PUBLIC);
-  copy_int(seed, server_random_int, 0, 0, 256);
-  copy_int(seed, client_random_int, 256, 0, 256);
-  copy_int(seed, label_master_secret, 512, 0, 104);
-  return seed;
+  int n = a.size() / 32;
+  if (a.size() % 32 != 0)
+    n += 1;
+
+  vector<Integer> out(n);
+  for (int i = 0; i < n; i++)
+  {
+    out[n - i - 1] = Integer(32, 0, party);
+    cpy_emp_int(out[n - i - 1], a, 0, i * 32, 32);
+  }
+  return out;
 }
 
-Integer key_expansion_seed(string client_random_hex, string server_random_hex)
+vector<Integer> master_secret_seed(string client_random_hex, string server_random_hex)
 {
-  Integer client_random_int = hex_to_integer(256, client_random_hex, ALICE);
-  Integer server_random_int = hex_to_integer(256, server_random_hex, ALICE);
-  Integer label_master_secret = hex_to_integer(104, "6b657920657870616e73696f6e", PUBLIC); // "key expansion"
-  Integer seed(256 + 256 + 104, 0, PUBLIC);
-  copy_int(seed, client_random_int, 0, 0, 256);
-  copy_int(seed, server_random_int, 256, 0, 256);
-  copy_int(seed, label_master_secret, 512, 0, 104);
-  return seed;
+  auto seed_str = master_secret_label + client_random_hex + server_random_hex;
+  return hex_to_emp_word(seed_str, PUBLIC);
+}
+
+vector<Integer> key_expansion_seed(string client_random_hex, string server_random_hex)
+{
+  auto seed_str = key_expansion_label + server_random_hex + client_random_hex;
+  return hex_to_emp_word(seed_str, PUBLIC);
 }
 
 vector<Integer> derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex)
 {
 
-  Integer seed_master_secret = master_secret_seed(client_random_hex, server_random_hex);
-  Integer premaster_share_alice = hex_to_integer(256, share, ALICE);
-  Integer premaster_share_bob = hex_to_integer(256, share, BOB);
-  Integer premaster_secret(256, 0, XOR);
-  premaster_secret = premaster_share_alice + premaster_share_bob;
-  hmac.set_secret(premaster_secret);
+  auto seed_master_secret = master_secret_seed(client_random_hex, server_random_hex);
 
-  vector<Integer>
-      key_material_master_secret = hmac.run(2, seed_master_secret);
+  auto premaster_share_alice = hex_to_emp_int(256, share, ALICE);
+  auto premaster_share_bob = hex_to_emp_int(256, share, BOB);
+  auto premaster_secret = to_word(premaster_share_alice + premaster_share_bob, XOR);
 
-  Integer master_secret(384, 0, XOR);
-  copy_int(master_secret, key_material_master_secret[0], 128, 0, 256);
-  copy_int(master_secret, key_material_master_secret[1], 0, 128, 128);
+  hmac.set_secret(premaster_secret, 8);
 
-  Integer seed_expansion = key_expansion_seed(client_random_hex, server_random_hex);
-  hmac.set_secret(master_secret);
-  vector<Integer> key_material_expansion = hmac.run(3, seed_expansion);
+  auto key_material_master_secret = hmac.run(2, seed_master_secret, master_secret_seed_len);
 
-  Integer client_enc(128, 0, ALICE);
-  Integer server_enc(128, 0, ALICE);
-  copy_int(client_enc, key_material_expansion[2], 0, 128, 128);
-  copy_int(server_enc, key_material_expansion[2], 0, 0, 128);
-  vector<Integer> enc_keys;
-  enc_keys.push_back(client_enc);
-  enc_keys.push_back(server_enc);
+  vector<Integer> master_secret(12);
+  copy(key_material_master_secret[0].begin(), key_material_master_secret[0].end(), master_secret.begin());
+  copy(key_material_master_secret[1].begin(), key_material_master_secret[1].begin() + 4, master_secret.begin() + 8);
+
+  hmac.set_secret(master_secret, 12);
+  auto seed_key_expansion = key_expansion_seed(client_random_hex, server_random_hex);
+  auto key_material_key_expansion = hmac.run(3, seed_key_expansion, key_expansion_seed_len);
+
+  vector<Integer> enc_keys(8);
+  copy(key_material_key_expansion[2].begin(), key_material_key_expansion[2].end(), enc_keys.begin());
 
   return enc_keys;
 }

@@ -1,18 +1,21 @@
 #ifndef EMP_DECO_UTILS_H_
 #define EMP_DECO_UTILS_H_
 #include "emp-sh2pc/emp-sh2pc.h"
+#include <iostream>
+#include "debug.h"
 
+using namespace std;
 using namespace emp;
-using std::string;
 
 const char *hex_char_to_bin(char c);
 string hex_to_binary(string hex);
 void reverse_str(string &str);
-Integer hex_to_integer(int len, string hex_input, int party);
-string bin_to_hex(string &s);
-string bin_to_hex_reversed(string &s);
-void debug_int(int party, Integer a, string desc);
-void copy_int(Integer &dst, Integer &src, size_t offset_dst, size_t offset_src, size_t len);
+
+Integer inv_int(Integer in);
+
+Integer hex_to_emp_int(int len, string hex_input, int party);
+vector<uint32_t> hex_to_word(string hex);
+vector<Integer> hex_to_emp_word(string hex, int party);
+void cpy_emp_int(Integer &dst, Integer src, int dst_off, int src_off, int len);
 
 #endif
-

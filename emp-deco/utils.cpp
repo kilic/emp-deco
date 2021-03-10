@@ -61,7 +61,15 @@ string hex_to_binary(string hex)
   return bin;
 }
 
-Integer hex_to_integer(int len, string hex_input, int party)
+Integer inv_int(Integer in)
+{
+  Integer res(in);
+  for (int i = 0; i < in.size(); ++i)
+    res.bits[i] = !res.bits[i];
+  return res;
+}
+
+Integer hex_to_emp_int(int len, string hex_input, int party)
 {
   string bin_input = hex_to_binary(hex_input);
   reverse_str(bin_input);
@@ -69,45 +77,54 @@ Integer hex_to_integer(int len, string hex_input, int party)
   return a;
 }
 
-string bin_to_hex(string &s)
+vector<uint32_t> hex_to_word(string hex)
 {
-  string out;
-  for (uint i = 0; i < s.size(); i += 4)
+  int n = hex.size() / 8;
+  vector<uint32_t> out(n);
+  for (int i = 0; i < n; i++)
   {
-    int8_t n = 0;
-    for (uint j = i; j < i + 4; ++j)
-    {
-      n <<= 1;
-      if (s[j] == '1')
-        n |= 1;
-    }
-    if (n <= 9)
-      out.push_back('0' + n);
-    else
-      out.push_back('a' + n - 10);
+    string in = hex.substr(hex.size() - (i + 1) * 8, 8);
+    out[n - 1 - i] = stoul(in, 0, 16);
   }
-
   return out;
 }
 
-string bin_to_hex_reversed(string &s)
-{
-  reverse_str(s);
-  return bin_to_hex(s);
-}
-
-void debug_int(int party, Integer a, string desc)
+vector<Integer> hex_to_emp_word(string hex, int party)
 {
 
-  std::cout << desc << std::endl;
-  string debug = a.reveal<string>(party);
-  std::cout << bin_to_hex_reversed(debug) << std::endl;
+  int n = hex.size() / 8;
+  int r = hex.size() % 8;
+
+  if (r != 0)
+  {
+    n += 1;
+  }
+  vector<Integer> out;
+  for (int i = 0; i < n; i++)
+  {
+
+    int len = 8;
+    int off = i * len;
+    if (i == n - 1 && r != 0)
+    {
+      len = r;
+      string in = hex.substr(off, len);
+      cout << r << endl;
+      out.push_back(Integer(32, stoul(in, 0, 16) << ((8 - r) * 4), party));
+    }
+    else
+    {
+      string in = hex.substr(off, len);
+      out.push_back(Integer(32, stoul(in, 0, 16), party));
+    }
+  }
+  return out;
 }
 
-void copy_int(Integer &dst, Integer &src, size_t offset_dst, size_t offset_src, size_t len)
+void cpy_emp_int(Integer &dst, Integer src, int dst_off, int src_off, int len)
 {
   for (int i = 0; i < len; i++)
   {
-    dst[i + offset_dst] = src[i + offset_src];
+    dst[i + dst_off] = src[i + src_off];
   }
 }

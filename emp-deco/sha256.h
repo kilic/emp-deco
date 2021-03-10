@@ -1,87 +1,96 @@
 
 #ifndef EMP_DECO_SHA256_H_
 #define EMP_DECO_SHA256_H_
-#include <stdint.h>
+#include "constant.h"
+#include "emp-sh2pc/emp-sh2pc.h"
 
-static uint32_t IV[8] = {
-    0x6A09E667,
-    0xBB67AE85,
-    0x3C6EF372,
-    0xA54FF53A,
-    0x510E527F,
-    0x9B05688C,
-    0x1F83D9AB,
-    0x5BE0CD19,
+template <class T>
+T inverse(T a);
+
+template <class T>
+T rotate_left(T x, int k)
+{
+    return ((x >> k) | (x << (32 - k)));
+}
+
+class sha256
+{
+
+private:
+    Integer _iv[8];
+    Integer _k[64];
+    template <typename T>
+    T k(int index);
+    template <class T>
+    T iv(int index);
+
+public:
+    sha256();
+    void prepare_2pc();
+    bool prepared = false;
+
+    template <class T>
+    void block(vector<T> &hh, vector<T> in)
+    {
+        this->_block(hh, in);
+    }
+
+    template <class T>
+    void block_init(vector<T> &hh, vector<T> in)
+    {
+        this->_block_init(hh, in);
+    }
+
+private:
+    template <class T>
+    void _block(vector<T> &hh, vector<T> in)
+    {
+
+        T w[64];
+        for (int i = 0; i < 16; i++)
+            w[i] = in[i];
+
+        for (int i = 16; i < 64; i++)
+        {
+            T v1 = w[i - 2];
+            T t1 = rotate_left(v1, 17) ^ rotate_left(v1, 19) ^ (v1 >> 10);
+            T v2 = w[i - 15];
+            T t2 = rotate_left(v2, 7) ^ rotate_left(v2, 18) ^ (v2 >> 3);
+            w[i] = t1 + w[i - 7] + t2 + w[i - 16];
+        }
+
+        T a = hh[0], b = hh[1], c = hh[2], d = hh[3];
+        T e = hh[4], f = hh[5], g = hh[6], h = hh[7];
+
+        for (int i = 0; i < 64; i++)
+        {
+            T t1 = h + (rotate_left(e, 6) ^ rotate_left(e, 11) ^ rotate_left(e, 25)) + ((e & f) ^ (inverse(e) & g)) + this->k<T>(i) + w[i];
+            T t2 = (rotate_left(a, 2) ^ rotate_left(a, 13) ^ rotate_left(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
+            h = g;
+            g = f;
+            f = e;
+            e = d + t1;
+            d = c;
+            c = b;
+            b = a;
+            a = t1 + t2;
+        }
+
+        hh[0] = hh[0] + a;
+        hh[1] = hh[1] + b;
+        hh[2] = hh[2] + c;
+        hh[3] = hh[3] + d;
+        hh[4] = hh[4] + e;
+        hh[5] = hh[5] + f;
+        hh[6] = hh[6] + g;
+        hh[7] = hh[7] + h;
+    };
+    template <class T>
+    void _block_init(vector<T> &hh, vector<T> in)
+    {
+        for (int i = 0; i < 8; i++)
+            hh[i] = this->iv<T>(i);
+        this->_block(hh, in);
+    };
 };
-
-static uint32_t K[64] = {
-    0x428a2f98,
-    0x71374491,
-    0xb5c0fbcf,
-    0xe9b5dba5,
-    0x3956c25b,
-    0x59f111f1,
-    0x923f82a4,
-    0xab1c5ed5,
-    0xd807aa98,
-    0x12835b01,
-    0x243185be,
-    0x550c7dc3,
-    0x72be5d74,
-    0x80deb1fe,
-    0x9bdc06a7,
-    0xc19bf174,
-    0xe49b69c1,
-    0xefbe4786,
-    0x0fc19dc6,
-    0x240ca1cc,
-    0x2de92c6f,
-    0x4a7484aa,
-    0x5cb0a9dc,
-    0x76f988da,
-    0x983e5152,
-    0xa831c66d,
-    0xb00327c8,
-    0xbf597fc7,
-    0xc6e00bf3,
-    0xd5a79147,
-    0x06ca6351,
-    0x14292967,
-    0x27b70a85,
-    0x2e1b2138,
-    0x4d2c6dfc,
-    0x53380d13,
-    0x650a7354,
-    0x766a0abb,
-    0x81c2c92e,
-    0x92722c85,
-    0xa2bfe8a1,
-    0xa81a664b,
-    0xc24b8b70,
-    0xc76c51a3,
-    0xd192e819,
-    0xd6990624,
-    0xf40e3585,
-    0x106aa070,
-    0x19a4c116,
-    0x1e376c08,
-    0x2748774c,
-    0x34b0bcb5,
-    0x391c0cb3,
-    0x4ed8aa4a,
-    0x5b9cca4f,
-    0x682e6ff3,
-    0x748f82ee,
-    0x78a5636f,
-    0x84c87814,
-    0x8cc70208,
-    0x90befffa,
-    0xa4506ceb,
-    0xbef9a3f7,
-    0xc67178f2,
-};
-
-uint32_t rotate_left(uint32_t x, int k);
-
-void sha256_block(uint32_t r[8], uint32_t *hh, uint8_t p[64]);
 #endif

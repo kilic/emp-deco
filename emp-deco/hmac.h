@@ -1,33 +1,42 @@
 #ifndef EMP_DECO_HMAC_H_
 #define EMP_DECO_HMAC_H_
 #include "emp-sh2pc/emp-sh2pc.h"
+#include "utils.h"
+#include "sha256.h"
 #include <iostream>
 using namespace emp;
+using namespace std;
 
-Integer xor_secret(Integer &pad, Integer &secret);
-Integer pad_int(int len);
+vector<Integer> pad_seed(vector<Integer> &seed, int seed_bit_len);
 
 class HMAC
 {
 
 private:
-  Integer iv = hex_to_integer(256, "6A09E667BB67AE853C6EF372A54FF53A510E527F9B05688C1F83D9AB5BE0CD19", PUBLIC);
-  Integer ipad_start = hex_to_integer(512, "36363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636", PUBLIC);
-  Integer opad_start = hex_to_integer(512, "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c", PUBLIC);
-  Integer outer_end_pad = pad_int(512 + 256);
+  vector<Integer> ipad_start;
+  vector<Integer> opad_start;
+  vector<Integer> ipad;
+  vector<Integer> opad;
 
-  Integer ipad;
-  Integer opad;
-
-  BristolFashion hasher;
+  sha256 hasher;
 
 public:
-  HMAC(BristolFashion hasher);
-  void set_secret(Integer &secret);
-  vector<Integer> run(int t, Integer seed);
+  HMAC(sha256 hasher)
+  {
+    this->ipad_start = hex_to_emp_word(
+        "36363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636", PUBLIC);
+    this->opad_start = hex_to_emp_word(
+        "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c", PUBLIC);
+    if (!hasher.prepared)
+      hasher.prepare_2pc();
+    this->hasher = hasher;
+  };
+  void set_secret(vector<Integer> secret, int len);
+  vector<vector<Integer>> run(int t, vector<Integer> seed, int seed_bit_len);
+  static vector<Integer> pad_block_input(vector<Integer> seed, int seed_bit_len);
 
 private:
-  Integer inner_hmac(Integer &seed, Integer &chain);
-  Integer outer_hmac(Integer &chain);
+  void inner_hmac(vector<Integer> &out, vector<Integer> in);
+  void outer_hmac(vector<Integer> &out, vector<Integer> chain);
 };
 #endif
