@@ -2,6 +2,7 @@
 #define EMP_DECO_UTILS_H_
 #include "emp-sh2pc/emp-sh2pc.h"
 #include <iostream>
+#include "emp-deco.h"
 #include "debug.h"
 
 using namespace std;
@@ -84,7 +85,7 @@ inline vector<uint32_t> hex_to_word(string hex)
   return out;
 }
 
-inline vector<Integer> hex_to_emp_word(string hex, int party)
+inline wide hex_to_emp_word(string hex, int party)
 {
 
   int n = hex.size() / 8;
@@ -94,7 +95,7 @@ inline vector<Integer> hex_to_emp_word(string hex, int party)
   {
     n += 1;
   }
-  vector<Integer> out;
+  wide out;
   for (int i = 0; i < n; i++)
   {
 

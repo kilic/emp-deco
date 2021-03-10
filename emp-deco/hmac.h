@@ -7,16 +7,16 @@
 using namespace emp;
 using namespace std;
 
-vector<Integer> pad_seed(vector<Integer> &seed, int seed_bit_len);
+wide pad_seed(wide &seed, int seed_bit_len);
 
 class HMAC
 {
 
 private:
-  vector<Integer> ipad_start;
-  vector<Integer> opad_start;
-  vector<Integer> ipad;
-  vector<Integer> opad;
+  wide ipad_start;
+  wide opad_start;
+  wide ipad;
+  wide opad;
 
   sha256 hasher;
 
@@ -31,12 +31,12 @@ public:
       hasher.prepare_2pc();
     this->hasher = hasher;
   };
-  void set_secret(vector<Integer> secret, int len);
-  vector<vector<Integer>> run(int t, vector<Integer> seed, int seed_bit_len);
-  static vector<Integer> pad_block_input(vector<Integer> seed, int seed_bit_len);
+  void set_secret(wide secret, int len);
+  vector<wide> run(int t, wide seed, int seed_bit_len);
+  static wide pad_block_input(wide seed, int seed_bit_len);
 
 private:
-  void inner_hmac(vector<Integer> &out, vector<Integer> in);
-  void outer_hmac(vector<Integer> &out, vector<Integer> chain);
+  void inner_hmac(wide &out, wide in);
+  void outer_hmac(wide &out, wide chain);
 };
 #endif

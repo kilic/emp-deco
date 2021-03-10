@@ -1,7 +1,7 @@
 #include "emp-sh2pc/emp-sh2pc.h"
 #include "hmac.h"
 
-void HMAC::set_secret(vector<Integer> secret, int secret_len)
+void HMAC::set_secret(wide secret, int secret_len)
 {
   // Assume secret bit len is 32*k
   // TODO: assert ipad.size >= secret_len
@@ -23,7 +23,7 @@ void HMAC::set_secret(vector<Integer> secret, int secret_len)
   }
 }
 
-vector<Integer> HMAC::pad_block_input(vector<Integer> seed, int seed_bit_len)
+wide HMAC::pad_block_input(wide seed, int seed_bit_len)
 {
   // TODO: assert seed bit len
   int z = seed_bit_len % 512;
@@ -34,7 +34,7 @@ vector<Integer> HMAC::pad_block_input(vector<Integer> seed, int seed_bit_len)
   }
   int number_of_pad_int = (512 - z) / 32;
 
-  vector<Integer> pad;
+  wide pad;
   bool alter_seed = z % 32 != 0;
 
   for (int i = 0; i < seed.size() - 1; i++)
@@ -58,7 +58,7 @@ vector<Integer> HMAC::pad_block_input(vector<Integer> seed, int seed_bit_len)
   return pad;
 }
 
-void HMAC::inner_hmac(vector<Integer> &out, vector<Integer> data)
+void HMAC::inner_hmac(wide &out, wide data)
 {
   sha256 h = this->hasher;
   // assert `in` is padded to 64 * k
@@ -66,12 +66,12 @@ void HMAC::inner_hmac(vector<Integer> &out, vector<Integer> data)
   h.block_init(out, this->ipad);
   for (int i = 0; i < k; i++)
   {
-    auto in = vector<Integer>(data.begin() + i * 16, data.begin() + (i + 1) * 16);
+    auto in = wide(data.begin() + i * 16, data.begin() + (i + 1) * 16);
     h.block(out, in);
   }
 }
 
-void HMAC::outer_hmac(vector<Integer> &out, vector<Integer> chain)
+void HMAC::outer_hmac(wide &out, wide chain)
 {
   sha256 h = this->hasher;
   h.block_init(out, this->opad);
@@ -79,12 +79,12 @@ void HMAC::outer_hmac(vector<Integer> &out, vector<Integer> chain)
   h.block(out, chain);
 }
 
-vector<vector<Integer>> HMAC::run(int t, vector<Integer> seed, int seed_bit_len)
+vector<wide> HMAC::run(int t, wide seed, int seed_bit_len)
 {
 
-  vector<vector<Integer>> A;
+  vector<wide> A;
   auto in = pad_block_input(seed, seed_bit_len);
-  vector<Integer> state(8);
+  wide state(8);
 
   // a_1 = HMAC(key, seed)
   // a_i = HMAC(key, a_(i-1))
@@ -106,7 +106,7 @@ vector<vector<Integer>> HMAC::run(int t, vector<Integer> seed, int seed_bit_len)
       // prepare for u
       // a_i' =  a_i|seed
 
-      vector<Integer> a;
+      wide a;
       for (int i = 0; i < 8; i++)
         a.push_back(state[i]);
       for (int i = 0; i < seed.size(); i++)
@@ -116,11 +116,11 @@ vector<vector<Integer>> HMAC::run(int t, vector<Integer> seed, int seed_bit_len)
   }
 
   // u_i = HMAC(key, a_(i+1)|seed)
-  vector<vector<Integer>> U;
+  vector<wide> U;
   int block_bit_len = seed_bit_len + 256;
   for (int i = 0; i < t; i++)
   {
-    vector<Integer> state(8);
+    wide state(8);
     auto in = pad_block_input(A[i], block_bit_len);
     // state = hash(key, a_i|seed)
     this->inner_hmac(state, in);

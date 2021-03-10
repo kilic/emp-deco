@@ -5,13 +5,13 @@ const string key_expansion_label = "6b657920657870616e73696f6e";
 const int master_secret_seed_len = 616;
 const int key_expansion_seed_len = 616;
 
-vector<Integer> to_word(Integer a, int party)
+wide to_word(Integer a, int party)
 {
   int n = a.size() / 32;
   if (a.size() % 32 != 0)
     n += 1;
 
-  vector<Integer> out(n);
+  wide out(n);
   for (int i = 0; i < n; i++)
   {
     out[n - i - 1] = Integer(32, 0, party);
@@ -20,19 +20,19 @@ vector<Integer> to_word(Integer a, int party)
   return out;
 }
 
-vector<Integer> master_secret_seed(string client_random_hex, string server_random_hex)
+wide master_secret_seed(string client_random_hex, string server_random_hex)
 {
   auto seed_str = master_secret_label + client_random_hex + server_random_hex;
   return hex_to_emp_word(seed_str, PUBLIC);
 }
 
-vector<Integer> key_expansion_seed(string client_random_hex, string server_random_hex)
+wide key_expansion_seed(string client_random_hex, string server_random_hex)
 {
   auto seed_str = key_expansion_label + server_random_hex + client_random_hex;
   return hex_to_emp_word(seed_str, PUBLIC);
 }
 
-vector<Integer> derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex)
+wide derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex)
 {
 
   auto seed_master_secret = master_secret_seed(client_random_hex, server_random_hex);
@@ -45,7 +45,7 @@ vector<Integer> derive_enc_keys_for_alice(HMAC &hmac, string share, string clien
 
   auto key_material_master_secret = hmac.run(2, seed_master_secret, master_secret_seed_len);
 
-  vector<Integer> master_secret(12);
+  wide master_secret(12);
   copy(key_material_master_secret[0].begin(), key_material_master_secret[0].end(), master_secret.begin());
   copy(key_material_master_secret[1].begin(), key_material_master_secret[1].begin() + 4, master_secret.begin() + 8);
 
@@ -53,7 +53,7 @@ vector<Integer> derive_enc_keys_for_alice(HMAC &hmac, string share, string clien
   auto seed_key_expansion = key_expansion_seed(client_random_hex, server_random_hex);
   auto key_material_key_expansion = hmac.run(3, seed_key_expansion, key_expansion_seed_len);
 
-  vector<Integer> enc_keys(8);
+  wide enc_keys(8);
   copy(key_material_key_expansion[2].begin(), key_material_key_expansion[2].end(), enc_keys.begin());
 
   return enc_keys;

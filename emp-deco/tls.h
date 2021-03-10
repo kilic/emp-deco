@@ -6,6 +6,6 @@
 using namespace std;
 using namespace emp;
 
-vector<Integer> derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex);
+wide derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex);
 
 #endif

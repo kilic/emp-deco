@@ -55,7 +55,7 @@ void debug<Integer>(Integer a, string desc)
 }
 
 template <>
-void debug<vector<Integer>>(vector<Integer> a, string desc)
+void debug<wide>(wide a, string desc)
 {
   if (desc != "")
     cout << desc << endl;
