@@ -9,6 +9,7 @@ using namespace emp;
 const string master_secret_label = "6d617374657220736563726574";
 const string key_expansion_label = "6b657920657870616e73696f6e";
 const string client_finished_label = "636c69656e742066696e6973686564";
+const string server_finished_label = "7365727665722066696e6973686564";
 const int master_secret_seed_len = 256 + 256 + 104;
 const int key_expansion_seed_len = 256 + 256 + 104;
 const int client_finished_seed_len = 256 + 120;
@@ -46,10 +47,17 @@ inline wide client_finished_seed(string message_digest)
   return hex_to_emp_word(seed_str, PUBLIC);
 }
 
+inline wide server_finished_seed(string message_digest)
+{
+  auto seed_str = server_finished_label + message_digest;
+  return hex_to_emp_word(seed_str, PUBLIC);
+}
+
 wide derive_master_secret(HMAC &hmac, string share, string client_random_hex, string server_random_hex);
 wide derive_enc_keys_for_alice(HMAC &hmac, string share, string client_random_hex, string server_random_hex);
 wide derive_enc_keys_for_alice(int party, HMAC &hmac, string master_secret_share, string client_random_hex, string server_random_hex);
 wide derive_enc_keys_for_alice(HMAC &hmac, wide master_secret, string client_random_hex, string server_random_hex);
-wide client_finished_message(int party, HMAC &hmac, string message_digest, string master_secret_str);
+wide client_finished_message(HMAC &hmac, string message_digest, string master_secret_share);
+wide server_finished_message(HMAC &hmac, string message_digest, string master_secret_share);
 
 #endif

@@ -20,7 +20,6 @@ void test_master_secret(int port, int party, string client_random, string server
   string share = party == ALICE ? "1" : "0";
 
   auto master_secret_xor = derive_master_secret(hmac, share, client_random, server_random);
-  cout << "hi" << endl;
 
   debug(master_secret_xor, "xor", XOR);
   debug(master_secret_xor, "master secret");
@@ -56,7 +55,7 @@ void test_enc_keys(int port, int party, string client_random, string server_rand
   delete io;
 }
 
-void test_client_finished(int port, int party)
+void test_finished(int port, int party)
 {
 
   NetIO *io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
@@ -73,11 +72,14 @@ void test_client_finished(int port, int party)
                                  ? "58d0dbbc748cad73e4573494fe2793afeb17dd4b310b97bc356b806a31b8864671587bcd6c51eb9d98954bb38ac62fe6"
                                  : "d1d2226b4eb3c89bed3d0738c89d935b756cf5b333d2c92fb2f1c57a2a69643d3beab82a53b600a8991e9c2263765b2d";
 
-  auto msg = client_finished_message(party, hmac, digest, xor_master_secret);
+  auto client_msg = client_finished_message(hmac, digest, xor_master_secret);
+  auto server_msg = server_finished_message(hmac, digest, xor_master_secret);
 
-  debug(msg, "client finished");
+  debug(client_msg, "client finished");
+  debug(server_msg, "server finished");
   // expect
   // e6ab0f4859b9e27520392d31
+  // 4021b7be3929a49d09fcbe96
 
   cout << CircuitExecution::circ_exec->num_and() << endl;
   finalize_semi_honest();
@@ -109,7 +111,7 @@ int main(int argc, char **argv)
   int port, party;
   parse_party_and_port(argv, &party, &port);
 
-  // test_master_secret(port, party, client_random, server_random);
-  // test_enc_keys(port, party, client_random, server_random);
-  // test_client_finished(port, party);
+  test_master_secret(port, party, client_random, server_random);
+  test_enc_keys(port, party, client_random, server_random);
+  test_finished(port, party);
 }

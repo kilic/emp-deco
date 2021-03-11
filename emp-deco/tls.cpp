@@ -41,15 +41,32 @@ wide derive_enc_keys_for_alice(HMAC &hmac, wide master_secret, string client_ran
   return enc_keys;
 }
 
-wide client_finished_message(int party, HMAC &hmac, string message_digest, string master_secret_share)
+wide client_finished_message(HMAC &hmac, string message_digest, string master_secret_share)
 {
 
   auto master_secret_share_alice = hex_to_emp_word(master_secret_share, ALICE);
   auto master_secret_share_bob = hex_to_emp_word(master_secret_share, BOB);
   auto master_secret = wide_xor(master_secret_share_alice, master_secret_share_bob);
 
-  auto seed_master_secret = client_finished_seed(message_digest);
   auto seed = client_finished_seed(message_digest);
+
+  hmac.set_secret(master_secret, 12);
+  auto material = hmac.run(1, seed, client_finished_seed_len);
+
+  wide mac(3);
+  copy(material[0].begin(), material[0].begin() + 3, mac.begin());
+
+  return mac;
+}
+
+wide server_finished_message(HMAC &hmac, string message_digest, string master_secret_share)
+{
+
+  auto master_secret_share_alice = hex_to_emp_word(master_secret_share, ALICE);
+  auto master_secret_share_bob = hex_to_emp_word(master_secret_share, BOB);
+  auto master_secret = wide_xor(master_secret_share_alice, master_secret_share_bob);
+
+  auto seed = server_finished_seed(message_digest);
 
   hmac.set_secret(master_secret, 12);
   auto material = hmac.run(1, seed, client_finished_seed_len);
