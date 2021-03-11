@@ -17,4 +17,16 @@ inline Integer new_emp_int(uint32_t value = 0)
 {
   return Integer(word_size, 0, PUBLIC);
 }
+
+inline wide wide_xor(wide a, wide b)
+{
+  wide c;
+  for (int i = 0; i < min(a.size(), b.size()); i++)
+  {
+    Integer ci = a[i] ^ b[i];
+    c.push_back(ci);
+  }
+  return c;
+}
+
 #endif

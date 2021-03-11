@@ -7,4 +7,6 @@
 template <class T>
 void debug(T a, string desc = "");
 
+void debug(wide a, string desc = "", int party = PUBLIC);
+
 #endif

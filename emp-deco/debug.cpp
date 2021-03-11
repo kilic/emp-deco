@@ -54,6 +54,18 @@ void debug<Integer>(Integer a, string desc)
   cout << desc << " " << bin_to_hex_reversed(debug) << endl;
 }
 
+void debug(wide a, string desc, int party)
+{
+  if (desc != "")
+    cout << desc << endl;
+  for (int i = 0; i < a.size(); i++)
+  {
+    string debug = a[i].reveal<string>(party);
+    cout << bin_to_hex_reversed(debug);
+  }
+  cout << endl;
+}
+
 template <>
 void debug<wide>(wide a, string desc)
 {

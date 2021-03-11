@@ -105,7 +105,6 @@ inline wide hex_to_emp_word(string hex, int party)
     {
       len = r;
       string in = hex.substr(off, len);
-      cout << r << endl;
       out.push_back(Integer(32, stoul(in, 0, 16) << ((8 - r) * 4), party));
     }
     else
